@@ -21,7 +21,7 @@ provider:
     apiGateway: true
 
   environment:
-    TODOS_TABLE: todos-udagram-${self:provider.stage}
+    TODOS_TABLE: todos-${self:provider.stage}
     TODO_INDEX_NAME: TodoIdIndex
     IMAGES_S3_BUCKET: todos-media-udagram-${self:provider.stage}
     JWKS_ENDPOINT: https://udagram.eu.auth0.com/.well-known/jwks.json
@@ -187,16 +187,16 @@ resources:
           - AttributeName: userId
             AttributeType: S
         KeySchema:
-          - AttributeName: todoId
+          - AttributeName: userId
             KeyType: HASH
-          - AttributeName: dueDate
+          - AttributeName: todoId
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.TODOS_TABLE}
         GlobalSecondaryIndexes:
           - IndexName: ${self:provider.environment.TODO_INDEX_NAME}
             KeySchema:
-            - AttributeName: userId
+            - AttributeName: dueDate
               KeyType: HASH
             Projection:
               ProjectionType: ALL

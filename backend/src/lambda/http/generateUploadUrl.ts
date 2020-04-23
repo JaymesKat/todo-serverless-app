@@ -5,22 +5,22 @@ import { cors } from 'middy/middlewares'
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 
 import { generatePutSignedUrl } from '../../utils/s3'
-import { TodoDbAdapter } from '../databaseAdapters/todoDbAdapter'
+import { updateTodoAttachment } from '../../businessLogic/Todo'
 import { createLogger } from '../../utils/logger'
 
 const logger = createLogger('File upload')
-
 const bucketName = process.env.IMAGES_S3_BUCKET
-
-const todoDbAdapter = new TodoDbAdapter()
 
 export const handler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   logger.info(`Processing event ${event}`)
-  const todoId = event.pathParameters.todoId
 
-  const signedUrl = generatePutSignedUrl(todoId);
+  const authHeader = event.headers.Authorization
+  const { todoId } = event.pathParameters
+  const signedUrl = generatePutSignedUrl(todoId)
+  const attachmentUrl = `https://${bucketName}.s3.amazonaws.com/${todoId}`
 
-  await todoDbAdapter.updateAttachment(todoId, bucketName)
+  logger.info('AttachmentUrl', attachmentUrl)
+  await updateTodoAttachment(todoId, authHeader, attachmentUrl)
 
   return {
     statusCode: 200,

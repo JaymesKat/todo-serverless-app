@@ -3,25 +3,21 @@ import 'source-map-support/register'
 import * as middy from 'middy'
 import { cors } from 'middy/middlewares'
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
-
 import { UpdateTodoRequest } from '../../requests/UpdateTodoRequest'
+import { updateTodo } from '../../businessLogic/Todo'
 import { createLogger } from '../../utils/logger'
-import { TodoDbAdapter } from '../databaseAdapters/todoDbAdapter'
 
 const logger = createLogger('updateTodos')
-
-const todoDbAdapter = new TodoDbAdapter()
 
 export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     logger.info(`Processing event ${event}`)
 
-    const todoId = event.pathParameters.todoId
+    const { todoId } = event.pathParameters 
     const updatedTodo: UpdateTodoRequest = JSON.parse(event.body)
+    const authHeader = event.headers.Authorization
 
-    const { done,  dueDate } = updatedTodo
-
-    todoDbAdapter.updateTodo(todoId, done, dueDate)
+    updateTodo(updatedTodo, todoId, authHeader)
 
     return {
       statusCode: 200,

@@ -1,17 +1,13 @@
 // import * as AWS from 'aws-sdk'
 import { DocumentClient } from 'aws-sdk/clients/dynamodb'
-import { createDynamoDBClient } from '../../utils/createDbClient'
-import { TodoItem } from '../../models/TodoItem'
-
-import { createLogger } from '../../utils/logger'
-const logger = createLogger('dbAccess')
+import { createDynamoDBClient } from '../utils/createDbClient'
+import { TodoItem } from '../models/TodoItem'
 
 export class TodoDbAdapter {
 
     constructor(
         private docClient: DocumentClient = createDynamoDBClient(),
-        private todosTable = process.env.TODOS_TABLE,
-        private todoIdIndex = process.env.TODO_INDEX_NAME
+        private todosTable = process.env.TODOS_TABLE
     ){
     }
 
@@ -19,7 +15,6 @@ export class TodoDbAdapter {
 
           const result = await this.docClient.query({
             TableName : this.todosTable,
-            IndexName: this.todoIdIndex,
             KeyConditionExpression: 'userId = :userId',
             ExpressionAttributeValues: {
                 ':userId': userId
@@ -29,13 +24,14 @@ export class TodoDbAdapter {
           return result.Items as TodoItem[]
     }
 
-    async getTodo(todoId: string): Promise<TodoItem> {
+    async getTodo(todoId: string, userId: string): Promise<TodoItem> {
 
         const result = await this.docClient.query({
             TableName : this.todosTable,
-            KeyConditionExpression: 'todoId = :todoId',
+            KeyConditionExpression: 'todoId = :todoId and userId = :userId',
             ExpressionAttributeValues: {
-                ':todoId': todoId
+                ':todoId': todoId,
+                ':userId': userId
             }
         }).promise()
 
@@ -51,18 +47,18 @@ export class TodoDbAdapter {
         return todo as TodoItem
     }
 
-    deleteTodo(todoId: string): void {
+    deleteTodo(todoId: string, userId: string): void {
         this.docClient.delete({
             TableName: this.todosTable,
-            Key: { "todoId" : todoId }
+            Key: { todoId, userId }
         })
     }
 
-    updateTodo(todoId: string, done:boolean, dueDate: string): void {
+    updateTodo(todoId: string, done:boolean, userId: string): void {
         this.docClient
         .update({
           TableName: this.todosTable,
-          Key: { todoId, dueDate },
+          Key: { todoId, userId },
           UpdateExpression: 'set done = :done',
           ConditionExpression: 'todoId = :todoId',
           ExpressionAttributeValues: {
@@ -72,16 +68,12 @@ export class TodoDbAdapter {
         })
     }
 
-    async updateAttachment(todoId: string, bucketName: string): Promise<void>{
-        const todo = await this.getTodo(todoId)
-        const { dueDate } = todo
-
-        const attachmentUrl = `https://${bucketName}.s3.amazonaws.com/${todoId}`
-
-        const result = await this.docClient
+    async updateAttachment(todoId: string, attachmentUrl: string, userId: string): Promise<void> {
+        
+        await this.docClient
         .update({
           TableName: this.todosTable,
-          Key: { todoId, dueDate },
+          Key: { todoId, userId },
           UpdateExpression: 'set attachmentUrl = :attachmentUrl',
           ConditionExpression: 'todoId = :todoId',
           ExpressionAttributeValues: {
@@ -89,6 +81,5 @@ export class TodoDbAdapter {
             ':attachmentUrl': attachmentUrl
           }
         }).promise()
-        logger.info("Result", result)
     }
 }
